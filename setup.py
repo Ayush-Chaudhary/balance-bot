@@ -17,6 +17,3 @@ setup(
     ],
     python_requires='>=3.8',
 )
-
-
-# pip install -e . --config-settings editable_mode=compat
