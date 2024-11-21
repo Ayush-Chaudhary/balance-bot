@@ -1,0 +1,12 @@
+Metadata-Version: 2.1
+Name: balance_bot
+Version: 0.0.1
+Summary: A custom balance bot environment for Gymnasium
+Author: Ayush Chaudhary
+Classifier: Programming Language :: Python :: 3.8
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Requires-Dist: gymnasium>=1.0.0
+Requires-Dist: pybullet>=3.2.6
+Requires-Dist: numpy>=1.21.0
