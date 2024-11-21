@@ -10,3 +10,4 @@ Requires-Python: >=3.8
 Requires-Dist: gymnasium>=1.0.0
 Requires-Dist: pybullet>=3.2.6
 Requires-Dist: numpy>=1.21.0
+Requires-Dist: stable-baselines3>=2.0.0

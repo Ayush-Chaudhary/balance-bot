@@ -1,0 +1,2 @@
+[gym.envs]
+balancebot-v0 = balance_bot:BalancebotEnv
