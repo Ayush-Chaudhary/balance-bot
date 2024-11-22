@@ -25,17 +25,19 @@ class TrainingCallback(BaseCallback):
 
 def main():
     # Create the environment
-    env = gym.make("balancebot-v0")#, render_mode='human')
+    env = gym.make("balancebot-v0", render_mode='human')
 
     # Create the learning agent using DQN from Stable-Baselines3
-    model = DQN("MlpPolicy", env, verbose=1, learning_rate=1e-3, buffer_size=50000,
+    model = DQN("MlpPolicy", env, verbose=1, learning_rate=1e-2, buffer_size=100000,
                 exploration_fraction=0.1, exploration_final_eps=0.02, target_update_interval=10)
 
     # Train the agent with the callback to stop training once solved
-    model.learn(total_timesteps=200000, callback=TrainingCallback())
+    model.learn(total_timesteps=1000000, callback=TrainingCallback())
 
     # Save the trained model
     model.save("balance_model")
+
+    env.close()
 
 if __name__ == '__main__':
     main()

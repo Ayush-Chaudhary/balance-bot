@@ -38,6 +38,9 @@ class BalancebotEnv(gym.Env):
     
     def _initialize_simulation(self):
         # Connect to PyBullet
+        if self.physics_client is not None:
+            p.disconnect(self.physics_client)
+            
         if self.render_mode == "human":
             self.physics_client = p.connect(p.GUI)
         else:
@@ -69,6 +72,7 @@ class BalancebotEnv(gym.Env):
 
         # Initialize observation
         self._observation = self._compute_observation()
+        self._env_step_counter = 0  # Reset step counter
         info = {}  # Any extra information
         return np.array(self._observation, dtype=np.float32), info
 
@@ -120,17 +124,20 @@ class BalancebotEnv(gym.Env):
     def _compute_done(self):
         # Check termination conditions
         position, _ = p.getBasePositionAndOrientation(self.bot_id)
-        return position[2] < 0.15  # If the robot falls over
+        return position[2] < 0.05 or self._env_step_counter >= 1500  # If the robot falls over
 
     def render(self):
         if self.render_mode == "human":
-            # Render is handled by PyBullet GUI
-            pass
+            # Set the camera position and target
+            p.resetDebugVisualizerCamera(
+                cameraDistance=0.25,  # Adjust the distance to zoom in 4 times
+                cameraYaw=50,        # Adjust the yaw angle
+                cameraPitch=-35,     # Adjust the pitch angle
+                cameraTargetPosition=[0, 0, 0.2]  # Adjust the target position
+            )
         elif self.render_mode == "rgb_array":
-            # Can implement an RGB image renderer if needed
+            # Handle RGB array rendering if needed
             pass
-        else:
-            raise NotImplementedError(f"Render mode '{self.render_mode}' is not supported.")
 
     def close(self):
         # Clean up the environment
