@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.optimize import minimize
 import gymnasium as gym
 import balance_bot  # Assuming this is the custom BalanceBot environment
 from balance_bot.envs.pid_controller import PIDController
@@ -35,21 +34,3 @@ class BalancebotEnvWithPID(BalancebotEnv):
         done = self._compute_done()
         truncated = False
         return np.array(observation, dtype=np.float32), reward, done, truncated, {}
-
-def objective(params):
-    kp, ki, kd = params
-    env = BalancebotEnvWithPID(kp, ki, kd)
-    observation, info = env.reset()
-    total_reward = 0
-    done = False
-    while not done:
-        observation, reward, done, truncated, info = env.step(action=None)
-        total_reward += reward
-    env.close()
-    return -total_reward  # Minimize the negative reward to maximize the reward
-
-initial_guess = [1.0, 0.1, 0.05]
-result = minimize(objective, initial_guess, method='Nelder-Mead')
-optimal_kp, optimal_ki, optimal_kd = result.x
-
-print(f"Optimal PID parameters: kp={optimal_kp}, ki={optimal_ki}, kd={optimal_kd}")
