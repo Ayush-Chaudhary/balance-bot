@@ -2,6 +2,7 @@ import gymnasium as gym
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
 import balance_bot  # Assuming this is the custom BalanceBot environment
+from balance_bot.envs.balancebot_env_pid import BalancebotEnv
 
 class TrainingCallback(BaseCallback):
     """
@@ -25,10 +26,11 @@ class TrainingCallback(BaseCallback):
 
 def main():
     # Create the environment
-    env = gym.make("balancebot-v0", render_mode='human')
+    # env = gym.make("balancebot-v0", render_mode='human')
+    env = BalancebotEnv(render_mode='human')
 
     # Create the learning agent using DQN from Stable-Baselines3
-    model = DQN("MlpPolicy", env, verbose=1, learning_rate=1e-2, buffer_size=100000,
+    model = DQN("MlpPolicy", env, verbose=1, learning_rate=1e-3, buffer_size=100000,
                 exploration_fraction=0.1, exploration_final_eps=0.02, target_update_interval=10)
 
     # Train the agent with the callback to stop training once solved

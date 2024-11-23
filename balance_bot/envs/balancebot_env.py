@@ -5,6 +5,7 @@ import pybullet as p
 import pybullet_data
 import os
 from .pid_controller import PIDController
+import keyboard
 
 class BalancebotEnv(gym.Env):
     metadata = {
@@ -30,7 +31,7 @@ class BalancebotEnv(gym.Env):
         
         self._env_step_counter = 0
         self.vt = np.float32(0)  # Initialize velocity
-        self.pid = PIDController(kp=1, ki=0, kd=1)  # Initialize PID controller
+        self.pid = PIDController(kp=1, ki=0, kd=0)  # Initialize PID controller
 
         # Initialize simulation
         self._initialize_simulation()
@@ -79,7 +80,7 @@ class BalancebotEnv(gym.Env):
         info = {}  # Any extra information
         return np.array(self._observation, dtype=np.float32), info
 
-    def step_old(self, action):
+    def step(self, action):
         self._apply_action(action)
         p.stepSimulation()
 
@@ -91,32 +92,6 @@ class BalancebotEnv(gym.Env):
         self._env_step_counter += 1
 
         return np.array(self._observation, dtype=np.float32), reward, done, truncated, {}
-    
-    def step(self, action):
-        # Compute control signal using PID controller
-        _, orientation = p.getBasePositionAndOrientation(self.bot_id)
-        euler = p.getEulerFromQuaternion(orientation)
-        control_signal = self.pid.compute(euler[0], dt=0.01)  # Assuming a time step of 0.01s
-
-        # Apply control signal to the robot
-        p.setJointMotorControl2(
-            bodyUniqueId=self.bot_id,
-            jointIndex=1,
-            controlMode=p.VELOCITY_CONTROL,
-            targetVelocity=control_signal
-        )
-
-        # Step the simulation
-        p.stepSimulation()
-        self._env_step_counter += 1
-
-        # Compute observation, reward, and done
-        observation = self._compute_observation()
-        reward = self._compute_reward()
-        done = self._compute_done()
-        truncated = False  # You can set this based on your environment's logic
-
-        return np.array(observation, dtype=np.float32), reward, done, truncated, {}
 
     def _apply_action(self, action):
         # Map action to velocity changes
@@ -153,13 +128,15 @@ class BalancebotEnv(gym.Env):
     def _compute_done(self):
         # Check termination conditions
         position, _ = p.getBasePositionAndOrientation(self.bot_id)
-        return position[2] < 0.05 or self._env_step_counter >= 1500  # If the robot falls over
+        if keyboard.is_pressed('q'):
+            return True
+        # return position[2] < 0.05# or self._env_step_counter >= 1500  # If the robot falls over
 
     def render(self):
         if self.render_mode == "human":
             # Set the camera position and target
             p.resetDebugVisualizerCamera(
-                cameraDistance=1,  # Adjust the distance to zoom in 4 times
+                cameraDistance=2,  # Adjust the distance to zoom in 4 times
                 cameraYaw=50,        # Adjust the yaw angle
                 cameraPitch=-35,     # Adjust the pitch angle
                 cameraTargetPosition=[0, 0, 0.5]  # Adjust the target position

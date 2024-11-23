@@ -10,4 +10,6 @@ balance_bot.egg-info/requires.txt
 balance_bot.egg-info/top_level.txt
 balance_bot/envs/__init__.py
 balance_bot/envs/balancebot_env.py
+balance_bot/envs/balancebot_env_pid.py
+balance_bot/envs/pid_controller.py
 tests/test_balancebot.py

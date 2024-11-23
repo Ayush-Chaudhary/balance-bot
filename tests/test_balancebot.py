@@ -1,8 +1,10 @@
 import gymnasium as gym
 import balance_bot
+from balance_bot.envs import BalancebotEnv
 
 # Load the custom environment
-env = gym.make('balancebot-v0', render_mode='human')
+# env = gym.make('balancebot-v0', render_mode='human')
+env = BalancebotEnv(render_mode='human')
 
 # Reset the environment
 obs, info = env.reset()
