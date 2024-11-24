@@ -1,15 +1,16 @@
 import numpy as np
 import gymnasium as gym
 import balance_bot  # Assuming this is the custom BalanceBot environment
-from balance_bot.envs.pid_controller import PIDController
 import pybullet as p
 from balance_bot.envs.balancebot_env import BalancebotEnv
+from balance_bot.helper.pid_controller import PIDController
+from balance_bot.helper import config
 
 
 class BalancebotEnvWithPID(BalancebotEnv):
-    def __init__(self, kp, ki, kd, render_mode=None):
+    def __init__(self, render_mode=None):
         super().__init__(render_mode)
-        self.pid = PIDController(kp, ki, kd)
+        self.pid = PIDController(config.KP_PITCH, config.KI_PITCH, config.KD_PITCH)
 
     def step(self, action):
         _, orientation = p.getBasePositionAndOrientation(self.bot_id)

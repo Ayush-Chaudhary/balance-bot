@@ -1,13 +1,14 @@
 import pybullet as p
 import numpy as np
 from balance_bot.envs.balancebot_env import BalancebotEnv
-from balance_bot.envs.pid_controller import PIDController
+from balance_bot.helper.pid_controller import PIDController
+from balance_bot.helper import config
 
 class BalancebotEnvWithPIDYawPitch(BalancebotEnv):
-    def __init__(self, kp_pitch, ki_pitch, kd_pitch, kp_yaw, ki_yaw, kd_yaw, render_mode=None):
+    def __init__(self, render_mode=None):
         super().__init__(render_mode)
-        self.pid_pitch = PIDController(kp_pitch, ki_pitch, kd_pitch)
-        self.pid_yaw = PIDController(kp_yaw, ki_yaw, kd_yaw)  # Secondary PID for yaw control
+        self.pid_pitch = PIDController(config.KP_PITCH, config.KI_PITCH, config.KD_PITCH)
+        self.pid_yaw = PIDController(config.KP_YAW, config.KI_YAW, config.KD_YAW)
         self.initial_orientation = None
 
     def reset(self):

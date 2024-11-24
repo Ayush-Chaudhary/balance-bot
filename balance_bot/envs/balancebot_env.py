@@ -4,8 +4,9 @@ import numpy as np
 import pybullet as p
 import pybullet_data
 import os
-from .pid_controller import PIDController
 import keyboard
+from scipy.ndimage import gaussian_filter
+from balance_bot.helper import config
 
 class BalancebotEnv(gym.Env):
     metadata = {
@@ -31,7 +32,6 @@ class BalancebotEnv(gym.Env):
         
         self._env_step_counter = 0
         self.vt = np.float32(0)  # Initialize velocity
-        self.pid = PIDController(kp=1, ki=0, kd=0)  # Initialize PID controller
 
         # Initialize simulation
         self._initialize_simulation()
@@ -63,8 +63,29 @@ class BalancebotEnv(gym.Env):
         p.setGravity(0, 0, -10)
         p.setTimeStep(0.01)  # Time step
 
-        # Load plane and robot
-        p.loadURDF("plane.urdf")
+        if config.USE_TERRAIN:
+            # Generate heightfield data with seed for reproducibility
+            rng = np.random.default_rng(seed)
+            heightfield = rng.uniform(0, 2, (256, 256))  # Random hills and valleys
+            # Smooth the heightfield data
+            heightfield = gaussian_filter(heightfield, sigma=5).flatten()
+
+            # Load heightfield into PyBullet
+            terrain_shape = p.createCollisionShape(
+                shapeType=p.GEOM_HEIGHTFIELD,
+                meshScale=[0.05, 0.05, 2],  # Scale: x, y, height
+                heightfieldTextureScaling=128,
+                numHeightfieldRows=256,
+                numHeightfieldColumns=256,
+                heightfieldData=heightfield
+            )
+
+            terrain = p.createMultiBody(0, terrain_shape)
+        else:
+            # Load plane
+            p.loadURDF("plane.urdf")
+
+        # load the robot
         cube_start_pos = [0, 0, 0.1]
         cube_start_orientation = p.getQuaternionFromEuler([0, 0, 0])
         path = os.path.abspath(os.path.dirname(__file__))
@@ -136,10 +157,10 @@ class BalancebotEnv(gym.Env):
         if self.render_mode == "human":
             # Set the camera position and target
             p.resetDebugVisualizerCamera(
-                cameraDistance=2,  # Adjust the distance to zoom in 4 times
-                cameraYaw=50,        # Adjust the yaw angle
-                cameraPitch=-35,     # Adjust the pitch angle
-                cameraTargetPosition=[0, 0, 0.5]  # Adjust the target position
+                cameraDistance=config.CAMERA_DISTANCE,
+                cameraYaw=config.CAMERA_YAW,
+                cameraPitch=config.CAMERA_PITCH,
+                cameraTargetPosition=config.CAMERA_TARGET
             )
         elif self.render_mode == "rgb_array":
             # Handle RGB array rendering if needed
