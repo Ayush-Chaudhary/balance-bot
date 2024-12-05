@@ -36,7 +36,7 @@ class BalancebotEnv(gym.Env):
         # Initialize simulation
         self._initialize_simulation()
 
-    def _seed(self, seed=None):
+    def _seed(self, seed=5):
         self.np_random, seed = gym.utils.seeding.np_random(seed)
         return [seed]
     
@@ -55,7 +55,7 @@ class BalancebotEnv(gym.Env):
         p.loadURDF("plane.urdf")  # Load ground plane
         self.vt = np.float32(0)  # Reset velocity to initial value
 
-    def reset(self, seed=None, options=None):
+    def reset(self, seed=5, options=None):
         super().reset(seed=seed)
 
         # Reset simulation
@@ -63,11 +63,13 @@ class BalancebotEnv(gym.Env):
         p.setGravity(0, 0, -10)
         p.setTimeStep(0.01)  # Time step
 
+        # Seed the RNG
+        if seed is not None:
+            self._seed(seed)
+
         if config.USE_TERRAIN:
             # Generate heightfield data with seed for reproducibility
-            rng = np.random.default_rng(seed)
-            heightfield = rng.uniform(0, 2, (256, 256))  # Random hills and valleys
-            # Smooth the heightfield data
+            heightfield = self.np_random.uniform(0, 1, (256, 256))
             heightfield = gaussian_filter(heightfield, sigma=5).flatten()
 
             # Load heightfield into PyBullet
@@ -86,7 +88,7 @@ class BalancebotEnv(gym.Env):
             p.loadURDF("plane.urdf")
 
         # load the robot
-        cube_start_pos = [0, 0, 0.1]
+        cube_start_pos = [0, 2, 0.1]
         cube_start_orientation = p.getQuaternionFromEuler([0, 0, 0])
         path = os.path.abspath(os.path.dirname(__file__))
         self.bot_id = p.loadURDF(
