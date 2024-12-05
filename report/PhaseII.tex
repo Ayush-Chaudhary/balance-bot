@@ -1,0 +1,66 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper, margin=2cm]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\title{Progress Report II on the Balance Bot Project}
+\author{Ayush Chaudhary (120429125)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section*{Introduction}
+The goal of this project is to develop a self-balancing two-wheeled robot capable of navigating uneven terrains autonomously. The robot must maintain balance using a PID controller while being controlled via user inputs or reinforcement learning (RL). This report documents the progress made, the challenges encountered, and the current status of the project.
+
+\section*{Challenges with ROS2 and Gazebo}
+Initially, ROS2 Humble and Gazebo were used for the robot simulation. While these tools are widely used for robotics projects, several challenges arose:
+\begin{itemize}
+    \item Difficulty in setting up reliable simulations for two-wheeled balancing robots.
+    \item Integration issues between custom URDF models and Gazebo's physics engine, leading to instability in simulations.
+    \item Insufficient community support or examples for creating customized balancing robots in ROS2.
+    \item Significant computational requirements, causing performance issues during real-time simulation on available hardware.
+\end{itemize}
+Due to these limitations, I decided to switch to PyBullet and Gymnasium, which offered simpler setup and better compatibility for physics-based simulation.
+
+\section*{Switch to PyBullet and Gymnasium}
+Switching to PyBullet and Gymnasium proved to be an effective choice for this project. The following progress was made after the transition:
+\begin{enumerate}
+    \item \textbf{Robot Model:} A custom XML file was created to define the two-wheeled robot's physical properties and dynamics. This model includes parameters for mass, inertia, wheel radius, and body dimensions.
+    \item \textbf{Terrain Generation:} A custom uneven terrain with hills and valleys was built using PyBullet's heightfield functionality. This provided a realistic testing environment for the robot's navigation capabilities.
+    \item \textbf{Balancing Controller:} A Proportional-Integral-Derivative (PID) controller was implemented to regulate the robot's pitch angle and maintain its upright balance. The controller dynamically adjusts the wheel velocities to counteract the robot's tilting motion.
+    \item \textbf{Keyboard Inputs:} User input functionality was integrated to allow manual control of the robot using the keyboard. This feature enables the robot to be navigated through the simulated terrain interactively.
+\end{enumerate}
+
+\section*{Integration of Reinforcement Learning}
+With the basic functionality in place, I focused on implementing reinforcement learning to automate the robot's navigation:
+\begin{itemize}
+    \item The RL framework was developed using Gymnasium and Stable-Baselines3.
+    \item The objective is to train the robot to navigate from a starting point to a predefined target destination on uneven terrain.
+    \item Initial experiments were conducted using the DQN (Deep Q-Network) algorithm. 
+    \item The RL environment includes rewards for balancing, forward motion, and reaching the goal while penalizing falling or unnecessary actions.
+\end{itemize}
+
+\section*{Current Status}
+At present, the following components have been completed:
+\begin{itemize}
+    \item Successfully built and tested the robot model and terrain in PyBullet.
+    \item Implemented the PID controller for balancing and keyboard inputs for manual navigation.
+    \item Integrated the RL framework and started initial training experiments.
+\end{itemize}
+The only remaining task is to tune the hyperparameters (e.g., learning rate, exploration strategy) and complete the training process to enable fully autonomous navigation.
+
+\section*{Conclusion and Next Steps}
+This project has made significant progress despite the initial challenges with ROS2 and Gazebo. Switching to PyBullet and Gymnasium has streamlined the development process, enabling rapid prototyping and testing. The focus now is on optimizing the reinforcement learning algorithm to achieve reliable autonomous navigation.
+
+Future steps include:
+\begin{itemize}
+    \item Fine-tuning hyperparameters and experimenting with different RL algorithms (e.g., PPO, SAC).
+    \item Validating the robot's performance across varying terrains and scenarios.
+\end{itemize}
+
+With these efforts, the project is well on track to achieve its goals. The video simulations for the progress so far can be accessed at \href{https://drive.google.com/drive/folders/1VXDsfIzYMMSa4MjszimPH14E_rtIcNOd?usp=sharing}{Google Drive}.
+
+\end{document}
