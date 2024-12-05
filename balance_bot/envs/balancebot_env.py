@@ -88,7 +88,7 @@ class BalancebotEnv(gym.Env):
             p.loadURDF("plane.urdf")
 
         # load the robot
-        cube_start_pos = [0, 2, 0.1]
+        cube_start_pos = [0, 0, 0.1]
         cube_start_orientation = p.getQuaternionFromEuler([0, 0, 0])
         path = os.path.abspath(os.path.dirname(__file__))
         self.bot_id = p.loadURDF(

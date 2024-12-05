@@ -21,8 +21,7 @@ def main():
         model = DQN("MlpPolicy", env, verbose=1, learning_rate=1e-3, buffer_size=100000,
                     exploration_fraction=0.1, exploration_final_eps=0.02, target_update_interval=10)
     elif model_type == 'PPO':
-        # Define the action noise
-        model = PPO("MlpPolicy", env, verbose=1, learning_rate=1e-3, n_steps=2048, batch_size=64, n_epochs=10, gamma=0.99)
+        model = PPO("MlpPolicy", env, verbose=1, learning_rate=1e-3, n_steps=1024, batch_size=64, n_epochs=5, gamma=0.99)
     elif model_type == 'A2C':
         model = A2C("MlpPolicy", env, verbose=1, learning_rate=1e-3, n_steps=50)
     else:

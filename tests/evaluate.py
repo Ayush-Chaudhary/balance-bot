@@ -1,12 +1,14 @@
 import gymnasium as gym
 from balance_bot.envs.pid_navigation_env import BalancebotEnvWithNavigation
 from stable_baselines3 import PPO, DQN
+from balance_bot.envs.navigation_final import BalancebotEnvFinal
 
 # Load the trained model
 model = PPO.load("balancebot_navigation_model_PPO.zip")
 
 # Create the environment
-env = BalancebotEnvWithNavigation(render_mode="human")
+# env = BalancebotEnvWithNavigation(render_mode="human")
+env = BalancebotEnvFinal(render_mode="human")
 
 observation, info = env.reset()
 done = False

@@ -118,7 +118,8 @@ class BalancebotEnvFinal(gym.Env):
         # # Reset robot position and orientation
         # p.resetBasePositionAndOrientation(self.bot_id, [0, 0, 3], p.getQuaternionFromEuler([0, 0, 0]))
         p.resetBaseVelocity(self.bot_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
-
+        p.loadURDF("plane.urdf")
+                    
         # Capture initial orientation for reference
         _, orientation = p.getBasePositionAndOrientation(self.bot_id)
         self.initial_orientation = p.getEulerFromQuaternion(orientation)
@@ -149,6 +150,7 @@ class BalancebotEnvFinal(gym.Env):
         euler = p.getEulerFromQuaternion(orientation)
 
         # Apply force-based navigation
+        self._apply_force_navigation(forward_force)
         self._apply_force_navigation(forward_force)
 
         # Compute pitch stabilization
@@ -265,11 +267,8 @@ class BalancebotEnvFinal(gym.Env):
         reward = distance_change * 10e4 - 1 * yaw_penalty + directional_reward
         # print(f"Distance Change: {distance_change}, Yaw Penalty: {yaw_penalty}, Current Distance to Target: {current_distance_to_target}")
 
-        # # Add reward for reducing the distance to the target
-        # reward += distance_change * 10  # Scale factor to emphasize distance change
-
         if current_distance_to_target < 1:
-            reward += 1 - current_distance_to_target  # Bonus reward for reaching the target
+            reward += (1 - current_distance_to_target) *10 # Bonus reward for reaching the target
 
         return reward
 
@@ -289,6 +288,9 @@ class BalancebotEnvFinal(gym.Env):
             return True
         elif keyboard.is_pressed('q'):
             print("User terminated the episode!")
+            return True
+        elif distance_to_target > 5:
+            print("Robot is too far from the target!")
             return True
         else:
             return False
