@@ -1,16 +1,34 @@
-import os
+import gymnasium as gym
+from gymnasium import spaces
 import numpy as np
 import pybullet as p
-import gymnasium as gym
-from scipy.ndimage import gaussian_filter
-from balance_bot.envs.balancebot_env import BalancebotEnv
-from balance_bot.helper.pid_controller import PIDController
-from balance_bot.helper import config
+import pybullet_data
+import os
 import keyboard
+from scipy.ndimage import gaussian_filter
+from balance_bot.helper import config
+from balance_bot.helper.pid_controller import PIDController
 
-class BalancebotEnvWithNavigation(BalancebotEnv):
+class BalancebotEnvFinal(gym.Env):
+    metadata = {
+        'render_modes': ['human', 'rgb_array'],
+        'render_fps': 50,
+        'video.frames_per_second': 50
+    }
+
     def __init__(self, render_mode=None):
-        super().__init__(render_mode)
+        super(BalancebotEnvFinal, self).__init__()
+        self.render_mode = render_mode
+        self._observation = np.array([], dtype=np.float32)
+        
+        self.physics_client = p.connect(p.GUI if render_mode == "human" else p.DIRECT)  # Choose render mode
+        p.setAdditionalSearchPath(pybullet_data.getDataPath())  # Allow PyBullet to find URDFs
+        self.bot_id = None
+        self._seed()  # Optionally set a seed for reproducibility
+        
+        self._env_step_counter = 0
+        self.vt = np.float32(0)  # Initialize velocity
+
         self.pid_pitch = PIDController(config.KP_PITCH, config.KI_PITCH, config.KD_PITCH)
         self.initial_orientation = None
         self.target_position = np.array(config.TARGET_POSITION)
@@ -30,24 +48,78 @@ class BalancebotEnvWithNavigation(BalancebotEnv):
             high=np.array([config.MAX_YAW_ADJUSTMENT, config.MAX_FORCE]),
             dtype=np.float32
         )
-    
-    def reset(self, seed=5, options=None):
 
-        # Call parent class reset (must align with its return structure)
-        observation, info = super().reset(seed=seed)
+        self.render()
+
+        # Initialize simulation
+        self._initialize_simulation()
+
+    def _seed(self, seed=5):
+        self.np_random, seed = gym.utils.seeding.np_random(seed)
+        return [seed]
+    
+    def _initialize_simulation(self):
+        # Connect to PyBullet
+        if self.physics_client is not None:
+            p.disconnect(self.physics_client)
+            
+        if self.render_mode == "human":
+            self.physics_client = p.connect(p.GUI)
+        else:
+            self.physics_client = p.connect(p.DIRECT)
+
+        p.setGravity(0, 0, -10)  # Set gravity
+        p.setTimeStep(0.01)
+        p.loadURDF("plane.urdf")  # Load ground plane
+        self.vt = np.float32(0)  # Reset velocity to initial value
+
+    def reset(self, seed=5, options=None):
+        super().reset(seed=seed)
 
         # Reset simulation
         p.resetSimulation()
         p.setGravity(0, 0, -10)
-        p.setTimeStep(0.01)
+        p.setTimeStep(0.01)  # Time step
 
-        # Load the plane
-        p.loadURDF("plane.urdf")
+        # Seed the RNG
+        if seed is not None:
+            self._seed(seed)
 
-        # Reset robot position and orientation
-        p.resetBasePositionAndOrientation(self.bot_id, [0, 0, 0.5], p.getQuaternionFromEuler([0, 0, 0]))
-        p.resetBaseVelocity(self.bot_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
+        if config.USE_TERRAIN:
+            # Generate heightfield data with seed for reproducibility
+            heightfield = self.np_random.uniform(0, 1, (256, 256))
+            heightfield = gaussian_filter(heightfield, sigma=5).flatten()
+
+            # Load heightfield into PyBullet
+            terrain_shape = p.createCollisionShape(
+                shapeType=p.GEOM_HEIGHTFIELD,
+                meshScale=[0.05, 0.05, 2],  # Scale: x, y, height
+                heightfieldTextureScaling=128,
+                numHeightfieldRows=256,
+                numHeightfieldColumns=256,
+                heightfieldData=heightfield
+            )
+
+            terrain = p.createMultiBody(0, terrain_shape)
+        else:
+            # Load plane
+            p.loadURDF("plane.urdf")
         
+        # load the robot
+        cube_start_pos = [0, 0, 0.5]
+        cube_start_orientation = p.getQuaternionFromEuler([0, 0, 0])
+        path = os.path.abspath(os.path.dirname(__file__))
+        self.bot_id = p.loadURDF(
+            os.path.join(path, "balancebot.xml"),
+            cube_start_pos,
+            cube_start_orientation
+        )
+
+        # # Reset robot position and orientation
+        # p.resetBasePositionAndOrientation(self.bot_id, [0, 0, 3], p.getQuaternionFromEuler([0, 0, 0]))
+        p.resetBaseVelocity(self.bot_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
+        p.loadURDF("plane.urdf")
+                    
         # Capture initial orientation for reference
         _, orientation = p.getBasePositionAndOrientation(self.bot_id)
         self.initial_orientation = p.getEulerFromQuaternion(orientation)
@@ -55,12 +127,21 @@ class BalancebotEnvWithNavigation(BalancebotEnv):
         # Add a visual marker for the target
         self._add_target_marker()
 
-        # Compute observation if needed
-        # self._observation = self._compute_observation()
-        
-        return observation, info
+        if p.getNumBodies() > 0:
+            print(f"Number of bodies in simulation after reset: {p.getNumBodies()}")
+            for i in range(p.getNumBodies()):
+                print(f"Body {i}: {p.getBodyInfo(i)}")
+
+        # Initialize observation
+        self._observation = self._compute_observation()
+        self._env_step_counter = 0  # Reset step counter
+        self.render()
+        info = {}  # Any extra information
+        return np.array(self._observation, dtype=np.float32), info
 
     def step(self, action):
+        # self._apply_action(action)
+
         # Action format: [yaw_adjustment, forward_force]
         yaw_adjustment, forward_force = action
 
@@ -69,6 +150,7 @@ class BalancebotEnvWithNavigation(BalancebotEnv):
         euler = p.getEulerFromQuaternion(orientation)
 
         # Apply force-based navigation
+        self._apply_force_navigation(forward_force)
         self._apply_force_navigation(forward_force)
 
         # Compute pitch stabilization
@@ -93,15 +175,17 @@ class BalancebotEnvWithNavigation(BalancebotEnv):
             targetVelocity=right_wheel_velocity
         )
 
-        # Step the simulation
         p.stepSimulation()
-        self._env_step_counter += 1
+
         observation = self._compute_observation()
         reward = self._compute_reward()
         done = self._compute_done()
-        truncated = False
-        return np.array(observation, dtype=np.float32), reward, done, truncated, {}
+        truncated = False #self._env_step_counter >= 1500  # Maximum steps for truncation
 
+        self._env_step_counter += 1
+
+        return np.array(self._observation, dtype=np.float32), reward, done, truncated, {}
+    
     def _apply_force_navigation(self, forward_force):
         """Apply forward/backward force to the robot's base."""
         if forward_force != 0:
@@ -113,22 +197,6 @@ class BalancebotEnvWithNavigation(BalancebotEnv):
                 flags=p.LINK_FRAME  # Apply in the base frame
             )
 
-    def _compute_observation(self):
-        """Include useful states for RL."""
-        position, orientation = p.getBasePositionAndOrientation(self.bot_id)
-        euler = p.getEulerFromQuaternion(orientation)
-        linear_vel, angular_vel = p.getBaseVelocity(self.bot_id)
-
-        # Observation: [pitch, pitch velocity, yaw, yaw velocity, x, y]
-        return [
-            np.float32(euler[1]),         # Pitch angle
-            np.float32(angular_vel[1]),  # Pitch velocity
-            np.float32(euler[2]),        # Yaw angle
-            np.float32(angular_vel[2]),  # Yaw velocity
-            np.float32(position[0]),     # x-position
-            np.float32(position[1])      # y-position
-        ]
-    
     def _add_target_marker(self):
         """Add a visual marker at the target position."""
         if self.target_marker_id is not None:
@@ -142,6 +210,39 @@ class BalancebotEnvWithNavigation(BalancebotEnv):
             baseVisualShapeIndex=self.target_marker_id,
             basePosition=self.target_position
         )
+
+    def _apply_action(self, action):
+        # Map action to velocity changes
+        delta_v = np.float32(0.1)
+        throttle = [-10 * delta_v, -5 * delta_v, -2 * delta_v, -delta_v, 0, delta_v, 2 * delta_v, 5 * delta_v, 10 * delta_v][action]
+        p.setJointMotorControl2(
+            bodyUniqueId=self.bot_id,
+            jointIndex=0,
+            controlMode=p.VELOCITY_CONTROL,
+            targetVelocity=throttle
+        )
+        p.setJointMotorControl2(
+            bodyUniqueId=self.bot_id,
+            jointIndex=1,
+            controlMode=p.VELOCITY_CONTROL,
+            targetVelocity=-throttle
+        )
+
+    def _compute_observation(self):
+        # Obtain the robot's state
+        position, orientation = p.getBasePositionAndOrientation(self.bot_id)
+        euler = p.getEulerFromQuaternion(orientation)
+        linear_vel, angular_vel = p.getBaseVelocity(self.bot_id)
+
+        # Observation: [pitch, pitch velocity, yaw, yaw velocity, x, y]
+        return [
+            np.float32(euler[1]),         # Pitch angle
+            np.float32(angular_vel[1]),  # Pitch velocity
+            np.float32(euler[2]),        # Yaw angle
+            np.float32(angular_vel[2]),  # Yaw velocity
+            np.float32(position[0]),     # x-position
+            np.float32(position[1])      # y-position
+        ]
 
     def _compute_reward(self):
         """Reward function with penalties for instability, distance, and directional movement."""
@@ -166,11 +267,8 @@ class BalancebotEnvWithNavigation(BalancebotEnv):
         reward = distance_change * 10e4 - 1 * yaw_penalty + directional_reward
         # print(f"Distance Change: {distance_change}, Yaw Penalty: {yaw_penalty}, Current Distance to Target: {current_distance_to_target}")
 
-        # # Add reward for reducing the distance to the target
-        # reward += distance_change * 10  # Scale factor to emphasize distance change
-
         if current_distance_to_target < 1:
-            reward += 1 - current_distance_to_target  # Bonus reward for reaching the target
+            reward += (1 - current_distance_to_target) *10 # Bonus reward for reaching the target
 
         return reward
 
@@ -182,7 +280,7 @@ class BalancebotEnvWithNavigation(BalancebotEnv):
         # End episode if robot is close to the target or has fallen over
         pitch_angle = abs(self._compute_observation()[0])
         # print(f"Distance to target: {distance_to_target}, Pitch angle: {pitch_angle}")
-        if distance_to_target < 0.5 :
+        if distance_to_target < 0.5:
             print("Target reached!")
             return True
         elif pitch_angle > np.pi / 2:
@@ -191,5 +289,27 @@ class BalancebotEnvWithNavigation(BalancebotEnv):
         elif keyboard.is_pressed('q'):
             print("User terminated the episode!")
             return True
+        elif distance_to_target > 5:
+            print("Robot is too far from the target!")
+            return True
         else:
             return False
+
+    def render(self):
+        if self.render_mode == "human":
+            # Set the camera position and target
+            p.resetDebugVisualizerCamera(
+                cameraDistance=config.CAMERA_DISTANCE,
+                cameraYaw=config.CAMERA_YAW,
+                cameraPitch=config.CAMERA_PITCH,
+                cameraTargetPosition=config.CAMERA_TARGET
+            )
+        elif self.render_mode == "rgb_array":
+            # Handle RGB array rendering if needed
+            pass
+
+    def close(self):
+        # Clean up the environment
+        if self.physics_client is not None:
+            p.disconnect(self.physics_client)
+            self.physics_client = None
